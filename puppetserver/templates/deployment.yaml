@@ -45,8 +45,6 @@ spec:
           env:
             - name: HOME
               value: /opt/puppetlabs/server/data/puppetserver
-            - name: FOO
-              value: bar
           ports:
             - name: http
               containerPort: 8140
