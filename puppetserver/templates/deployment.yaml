@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "puppetserver.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "puppetserver.name" . }}
+    helm.sh/chart: {{ include "puppetserver.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "puppetserver.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "puppetserver.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["java"]
+          args: [
+            "-Xms2g",
+            "-Xmx2g",
+            "-Djruby.logger.class=com.puppetlabs.jruby_utils.jruby.Slf4jLogger",
+            "-Dlogappender=STDOUT",
+            "-Djava.security.egd=/dev/urandom",
+            "-cp",
+            "/opt/puppetlabs/server/apps/puppetserver/puppet-server-release.jar:/opt/puppetlabs/server/data/puppetserver/jars/*",
+            "clojure.main",
+            "-m",
+            "puppetlabs.trapperkeeper.main",
+            "--config",
+            "/etc/puppetlabs/puppetserver/conf.d",
+            "--bootstrap-config",
+            "/etc/puppetlabs/puppetserver/services.d/,/opt/puppetlabs/server/apps/puppetserver/config/services.d/",
+            "--restart-file",
+            "/opt/puppetlabs/server/data/puppetserver/restartcounter"
+          ]
+          env:
+            - name: HOME
+              value: /opt/puppetlabs/server/data/puppetserver
+            - name: FOO
+              value: bar
+          ports:
+            - name: http
+              containerPort: 8140
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /etc/puppetlabs/puppet
+              name: confdir
+            - mountPath: /var/log/puppetlabs
+              name: logdir
+          livenessProbe:
+            httpGet:
+              path: /production/status/test
+              port: http
+              scheme: HTTPS
+              httpHeaders:
+                - name: Accept
+                  value: pson
+          readinessProbe:
+            httpGet:
+              path: /production/status/test
+              port: http
+              scheme: HTTPS
+              httpHeaders:
+                - name: Accept
+                  value: pson
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      securityContext:
+        supplementalGroups: [999]
+      volumes:
+        - name: logdir
+          emptyDir: {}
+        - name: confdir
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
