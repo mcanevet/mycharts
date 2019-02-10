@@ -54,22 +54,24 @@ spec:
               name: confdir
             - mountPath: /var/log/puppetlabs
               name: logdir
-          livenessProbe:
-            httpGet:
-              path: /production/status/test
-              port: http
-              scheme: HTTPS
-              httpHeaders:
-                - name: Accept
-                  value: pson
-          readinessProbe:
-            httpGet:
-              path: /production/status/test
-              port: http
-              scheme: HTTPS
-              httpHeaders:
-                - name: Accept
-                  value: pson
+            - mountPath: /opt/puppetlabs/server/data/puppetserver/.puppetlabs/etc/puppet
+              name: user-confdir
+#          livenessProbe:
+#            httpGet:
+#              path: /production/status/test
+#              port: http
+#              scheme: HTTPS
+#              httpHeaders:
+#                - name: Accept
+#                  value: pson
+#          readinessProbe:
+#            httpGet:
+#              path: /production/status/test
+#              port: http
+#              scheme: HTTPS
+#              httpHeaders:
+#                - name: Accept
+#                  value: pson
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       securityContext:
@@ -79,6 +81,9 @@ spec:
           emptyDir: {}
         - name: confdir
           emptyDir: {}
+        - name: user-confdir
+          configMap:
+            name: {{ include "puppetserver.fullname" . }}-user-confdir
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
